@@ -1,0 +1,650 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Hardened Global Primitives
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+    function incoming() {
+      return request.resource.data;
+    }
+    function existing() {
+      return resource.data;
+    }
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+    function isBootstrappedAdmin() {
+      return isVerified() && request.auth.token.email == 'pacmanghoster@gmail.com';
+    }
+    function isAdmin() {
+      return isBootstrappedAdmin() || (isVerified() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+
+    // 3. Validation Blueprints
+    function isValidProduct(data) {
+      return data.keys().hasAll([
+        'title', 'category', 'description', 'priceXof', 'imageUrl',
+        'available', 'stock', 'sizes', 'festiveTags', 'featured',
+        'salesCount', 'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'title', 'category', 'description', 'priceXof', 'compareAtPriceXof',
+        'imageUrl', 'galleryUrls', 'colors', 'sizeGuideCategory',
+        'available', 'stock', 'sizes', 'festiveTags',
+        'featured', 'salesCount', 'createdAt', 'updatedAt'
+      ]) &&
+      data.title is string && data.title.size() >= 2 && data.title.size() <= 140 &&
+      data.category in ['femme', 'homme', 'enfants', 'jeunes', 'cadeaux'] &&
+      data.description is string && data.description.size() >= 2 && data.description.size() <= 2000 &&
+      (data.priceXof is int || data.priceXof is float) && data.priceXof >= 100 && data.priceXof <= 50000000 &&
+      (!('compareAtPriceXof' in data) || data.compareAtPriceXof == null || ((data.compareAtPriceXof is int || data.compareAtPriceXof is float) && data.compareAtPriceXof >= 0 && data.compareAtPriceXof <= 50000000)) &&
+      data.imageUrl is string && data.imageUrl.size() >= 5 && data.imageUrl.size() <= 350000 &&
+      (!('galleryUrls' in data) || (data.galleryUrls is list && data.galleryUrls.size() <= 6 && (data.galleryUrls.size() == 0 || (data.galleryUrls[0] is string && data.galleryUrls[0].size() <= 350000)))) &&
+      (!('colors' in data) || (data.colors is list && data.colors.size() <= 8 && (data.colors.size() == 0 || data.colors[0] is map))) &&
+      (!('sizeGuideCategory' in data) || data.sizeGuideCategory == null || data.sizeGuideCategory in ['vetements', 'enfants', 'chaussures', 'accessoires']) &&
+      data.available is bool &&
+      (data.stock is int || data.stock is float) && data.stock >= 0 && data.stock <= 100000 &&
+      data.sizes is list && data.sizes.size() <= 10 && (data.sizes.size() == 0 || (data.sizes[0] is string && data.sizes[0].size() <= 24)) &&
+      data.festiveTags is list && data.festiveTags.size() <= 10 && (data.festiveTags.size() == 0 || (data.festiveTags[0] is string && data.festiveTags[0].size() <= 40)) &&
+      data.featured is bool &&
+      (data.salesCount is int || data.salesCount is float) && data.salesCount >= 0 && data.salesCount <= 10000000 &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidStoreSettings(data) {
+      return data.keys().hasAll([
+        'festiveMode', 'manualSeasonId', 'customBannerText',
+        'festiveDiscountPercent', 'freeDeliveryThresholdXof',
+        'standardDeliveryFeeXof', 'storePhone', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'festiveMode', 'manualSeasonId', 'customBannerText',
+        'festiveDiscountPercent', 'freeDeliveryThresholdXof',
+        'standardDeliveryFeeXof', 'storePhone',
+        'whatsappPhone', 'whatsappAutoNotify', 'preferredPaymentGateway',
+        'loyaltyEarnStepXof', 'loyaltyPointValueXof',
+        'loyaltyMinRedeemPoints', 'loyaltyMinOrderXof',
+        'loyaltyMaxDiscountPercent', 'updatedAt'
+      ]) &&
+      data.festiveMode in ['auto', 'manual'] &&
+      data.manualSeasonId is string && data.manualSeasonId.size() >= 2 && data.manualSeasonId.size() <= 64 &&
+      data.customBannerText is string && data.customBannerText.size() <= 200 &&
+      (data.festiveDiscountPercent is int || data.festiveDiscountPercent is float) && data.festiveDiscountPercent >= 0 && data.festiveDiscountPercent <= 80 &&
+      (data.freeDeliveryThresholdXof is int || data.freeDeliveryThresholdXof is float) && data.freeDeliveryThresholdXof >= 0 && data.freeDeliveryThresholdXof <= 5000000 &&
+      (data.standardDeliveryFeeXof is int || data.standardDeliveryFeeXof is float) && data.standardDeliveryFeeXof >= 0 && data.standardDeliveryFeeXof <= 100000 &&
+      data.storePhone is string && data.storePhone.size() <= 32 &&
+      (!('whatsappPhone' in data) || (data.whatsappPhone is string && data.whatsappPhone.size() <= 32)) &&
+      (!('whatsappAutoNotify' in data) || data.whatsappAutoNotify is bool) &&
+      (!('preferredPaymentGateway' in data) || data.preferredPaymentGateway in ['wave_direct', 'paystack', 'cinetpay', 'manual']) &&
+      (!('loyaltyEarnStepXof' in data) || ((data.loyaltyEarnStepXof is int || data.loyaltyEarnStepXof is float) && data.loyaltyEarnStepXof >= 100 && data.loyaltyEarnStepXof <= 50000)) &&
+      (!('loyaltyPointValueXof' in data) || ((data.loyaltyPointValueXof is int || data.loyaltyPointValueXof is float) && data.loyaltyPointValueXof >= 1 && data.loyaltyPointValueXof <= 1000)) &&
+      (!('loyaltyMinRedeemPoints' in data) || ((data.loyaltyMinRedeemPoints is int || data.loyaltyMinRedeemPoints is float) && data.loyaltyMinRedeemPoints >= 10 && data.loyaltyMinRedeemPoints <= 10000)) &&
+      (!('loyaltyMinOrderXof' in data) || ((data.loyaltyMinOrderXof is int || data.loyaltyMinOrderXof is float) && data.loyaltyMinOrderXof >= 0 && data.loyaltyMinOrderXof <= 500000)) &&
+      (!('loyaltyMaxDiscountPercent' in data) || ((data.loyaltyMaxDiscountPercent is int || data.loyaltyMaxDiscountPercent is float) && data.loyaltyMaxDiscountPercent >= 5 && data.loyaltyMaxDiscountPercent <= 90)) &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidOrder(data) {
+      return data.keys().hasAll([
+        'orderNumber', 'customerId', 'customerName', 'customerEmail',
+        'customerPhone', 'city', 'commune', 'addressDetails',
+        'paymentMethod', 'items', 'subtotalXof', 'deliveryFeeXof',
+        'discountXof', 'totalXof', 'status', 'notes', 'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'orderNumber', 'customerId', 'customerName', 'customerEmail',
+        'customerPhone', 'city', 'commune', 'addressDetails',
+        'paymentMethod', 'paymentStatus', 'paymentReference', 'paymentProvider',
+        'items', 'subtotalXof', 'deliveryFeeXof',
+        'discountXof', 'promoCode', 'promoDiscountXof',
+        'pointsRedeemed', 'pointsDiscountXof',
+        'pointsEarned', 'pointsCredited',
+        'referralCodeUsed', 'referralRewarded',
+        'totalXof', 'status', 'notes',
+        'createdAt', 'updatedAt'
+      ]) &&
+      data.orderNumber is string && data.orderNumber.size() >= 4 && data.orderNumber.size() <= 32 &&
+      (data.orderNumber.matches('^CL-[0-9A-Z\\-]+$') || data.orderNumber.matches('^EB-[0-9A-Z\\-]+$')) &&
+      isValidId(data.customerId) &&
+      data.customerName is string && data.customerName.size() >= 2 && data.customerName.size() <= 100 &&
+      data.customerEmail is string && data.customerEmail.size() >= 3 && data.customerEmail.size() <= 150 &&
+      data.customerPhone is string && data.customerPhone.size() >= 6 && data.customerPhone.size() <= 32 &&
+      data.city is string && data.city.size() >= 2 && data.city.size() <= 64 &&
+      data.commune is string && data.commune.size() >= 2 && data.commune.size() <= 80 &&
+      data.addressDetails is string && data.addressDetails.size() <= 300 &&
+      data.paymentMethod in ['wave', 'orange_money', 'mtn_momo', 'card', 'cash_on_delivery'] &&
+      (!('paymentStatus' in data) || data.paymentStatus in ['unpaid', 'pending_verification', 'paid', 'failed']) &&
+      (!('paymentReference' in data) || data.paymentReference == null || (data.paymentReference is string && data.paymentReference.size() <= 128)) &&
+      (!('paymentProvider' in data) || data.paymentProvider == null || (data.paymentProvider is string && data.paymentProvider.size() <= 64)) &&
+      data.items is list && data.items.size() >= 1 && data.items.size() <= 20 && data.items[0] is map &&
+      (data.subtotalXof is int || data.subtotalXof is float) && data.subtotalXof >= 100 &&
+      (data.deliveryFeeXof is int || data.deliveryFeeXof is float) && data.deliveryFeeXof >= 0 &&
+      (data.discountXof is int || data.discountXof is float) && data.discountXof >= 0 &&
+      (!('promoCode' in data) || data.promoCode == null || (data.promoCode is string && data.promoCode.size() <= 32)) &&
+      (!('promoDiscountXof' in data) || ((data.promoDiscountXof is int || data.promoDiscountXof is float) && data.promoDiscountXof >= 0 && data.promoDiscountXof <= data.subtotalXof)) &&
+      (!('pointsRedeemed' in data) || ((data.pointsRedeemed is int || data.pointsRedeemed is float) && data.pointsRedeemed >= 0 && data.pointsRedeemed <= 1000000)) &&
+      (!('pointsDiscountXof' in data) || ((data.pointsDiscountXof is int || data.pointsDiscountXof is float) && data.pointsDiscountXof >= 0 && data.pointsDiscountXof <= data.subtotalXof)) &&
+      (!('pointsEarned' in data) || ((data.pointsEarned is int || data.pointsEarned is float) && data.pointsEarned >= 0 && data.pointsEarned <= 1000000)) &&
+      (!('pointsCredited' in data) || data.pointsCredited is bool) &&
+      (!('referralCodeUsed' in data) || data.referralCodeUsed == null || (data.referralCodeUsed is string && data.referralCodeUsed.size() <= 32)) &&
+      (!('referralRewarded' in data) || data.referralRewarded is bool) &&
+      (data.totalXof is int || data.totalXof is float) && data.totalXof >= 100 &&
+      data.status in ['pending', 'confirmed', 'preparing', 'delivering', 'delivered', 'cancelled'] &&
+      data.notes is string && data.notes.size() <= 400 &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidLoyaltyAccount(data) {
+      return data.keys().hasAll([
+        'customerId', 'customerName', 'customerEmail',
+        'pointsBalance', 'totalEarned', 'totalRedeemed', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'customerId', 'customerName', 'customerEmail',
+        'pointsBalance', 'totalEarned', 'totalRedeemed',
+        'referralCode', 'referredByCode', 'lastOrderId', 'updatedAt'
+      ]) &&
+      isValidId(data.customerId) &&
+      data.customerName is string && data.customerName.size() >= 1 && data.customerName.size() <= 100 &&
+      data.customerEmail is string && data.customerEmail.size() >= 3 && data.customerEmail.size() <= 150 &&
+      (data.pointsBalance is int || data.pointsBalance is float) && data.pointsBalance >= 0 && data.pointsBalance <= 10000000 &&
+      (data.totalEarned is int || data.totalEarned is float) && data.totalEarned >= 0 && data.totalEarned <= 10000000 &&
+      (data.totalRedeemed is int || data.totalRedeemed is float) && data.totalRedeemed >= 0 && data.totalRedeemed <= 10000000 &&
+      (!('referralCode' in data) || data.referralCode == null || (data.referralCode is string && data.referralCode.size() <= 32)) &&
+      (!('referredByCode' in data) || data.referredByCode == null || (data.referredByCode is string && data.referredByCode.size() <= 32)) &&
+      (!('lastOrderId' in data) || data.lastOrderId == null || isValidId(data.lastOrderId)) &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidLoyaltyTransaction(data) {
+      return data.keys().hasAll([
+        'customerId', 'type', 'pointsDelta', 'description', 'createdAt'
+      ]) &&
+      data.keys().hasOnly([
+        'customerId', 'type', 'pointsDelta', 'orderId', 'orderNumber',
+        'description', 'createdAt'
+      ]) &&
+      isValidId(data.customerId) &&
+      data.type in ['welcome', 'earn', 'redeem', 'refund', 'bonus', 'referral'] &&
+      (data.pointsDelta is int || data.pointsDelta is float) && data.pointsDelta >= -1000000 && data.pointsDelta <= 1000000 &&
+      (!('orderId' in data) || data.orderId == null || isValidId(data.orderId)) &&
+      (!('orderNumber' in data) || data.orderNumber == null || (data.orderNumber is string && data.orderNumber.size() <= 32)) &&
+      data.description is string && data.description.size() >= 2 && data.description.size() <= 200 &&
+      data.createdAt is timestamp;
+    }
+
+    function isValidReferral(data) {
+      return data.keys().hasAll([
+        'code', 'ownerId', 'ownerName', 'successfulCount', 'totalBonusPoints', 'createdAt'
+      ]) &&
+      data.keys().hasOnly([
+        'code', 'ownerId', 'ownerName', 'successfulCount', 'totalBonusPoints', 'createdAt'
+      ]) &&
+      data.code is string && data.code.size() >= 4 && data.code.size() <= 32 && data.code.matches('^[A-Z0-9\\-]+$') &&
+      isValidId(data.ownerId) &&
+      data.ownerName is string && data.ownerName.size() >= 1 && data.ownerName.size() <= 100 &&
+      (data.successfulCount is int || data.successfulCount is float) && data.successfulCount >= 0 && data.successfulCount <= 1000000 &&
+      (data.totalBonusPoints is int || data.totalBonusPoints is float) && data.totalBonusPoints >= 0 && data.totalBonusPoints <= 100000000 &&
+      data.createdAt is timestamp;
+    }
+
+    function isValidPromoCode(data) {
+      return data.keys().hasAll([
+        'code', 'description', 'partnerName', 'discountType', 'discountValue',
+        'minOrderXof', 'maxUses', 'usedCount', 'active', 'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'code', 'description', 'partnerName', 'discountType', 'discountValue',
+        'minOrderXof', 'maxUses', 'usedCount', 'active', 'seasonTag',
+        'expiresAt', 'lastOrderId', 'createdAt', 'updatedAt'
+      ]) &&
+      data.code is string && data.code.size() >= 3 && data.code.size() <= 32 && data.code.matches('^[A-Z0-9_\\-]+$') &&
+      data.description is string && data.description.size() <= 160 &&
+      data.partnerName is string && data.partnerName.size() <= 100 &&
+      data.discountType in ['percent', 'fixed_xof'] &&
+      (data.discountValue is int || data.discountValue is float) && data.discountValue >= 1 && data.discountValue <= 5000000 &&
+      (data.minOrderXof is int || data.minOrderXof is float) && data.minOrderXof >= 0 && data.minOrderXof <= 10000000 &&
+      (data.maxUses is int || data.maxUses is float) && data.maxUses >= 1 && data.maxUses <= 1000000 &&
+      (data.usedCount is int || data.usedCount is float) && data.usedCount >= 0 && data.usedCount <= 1000000 &&
+      data.active is bool &&
+      (!('seasonTag' in data) || data.seasonTag == null || (data.seasonTag is string && data.seasonTag.size() <= 64)) &&
+      (!('expiresAt' in data) || data.expiresAt == null || (data.expiresAt is string && data.expiresAt.size() <= 32)) &&
+      (!('lastOrderId' in data) || data.lastOrderId == null || isValidId(data.lastOrderId)) &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidReview(data) {
+      return data.keys().hasAll([
+        'productId', 'orderId', 'customerId', 'customerName',
+        'rating', 'comment', 'verifiedPurchase', 'createdAt'
+      ]) &&
+      data.keys().hasOnly([
+        'productId', 'orderId', 'customerId', 'customerName',
+        'rating', 'comment', 'photoUrl', 'verifiedPurchase', 'createdAt'
+      ]) &&
+      isValidId(data.productId) &&
+      isValidId(data.orderId) &&
+      isValidId(data.customerId) &&
+      data.customerName is string && data.customerName.size() >= 1 && data.customerName.size() <= 100 &&
+      (data.rating is int || data.rating is float) && data.rating >= 1 && data.rating <= 5 &&
+      data.comment is string && data.comment.size() >= 3 && data.comment.size() <= 1000 &&
+      (!('photoUrl' in data) || data.photoUrl == null || (data.photoUrl is string && data.photoUrl.size() <= 350000)) &&
+      data.verifiedPurchase is bool &&
+      data.createdAt is timestamp;
+    }
+
+    function isValidNotification(data) {
+      return data.keys().hasAll([
+        'recipientRole', 'recipientPhone', 'channel', 'event', 'message', 'status', 'createdAt'
+      ]) &&
+      data.keys().hasOnly([
+        'orderId', 'orderNumber', 'recipientRole', 'recipientPhone',
+        'channel', 'event', 'message', 'status', 'createdAt'
+      ]) &&
+      (!('orderId' in data) || data.orderId == null || isValidId(data.orderId)) &&
+      (!('orderNumber' in data) || data.orderNumber == null || (data.orderNumber is string && data.orderNumber.size() <= 32)) &&
+      data.recipientRole in ['customer', 'admin'] &&
+      data.recipientPhone is string && data.recipientPhone.size() <= 32 &&
+      data.channel in ['whatsapp', 'sms'] &&
+      data.event is string && data.event.size() >= 2 && data.event.size() <= 64 &&
+      data.message is string && data.message.size() >= 2 && data.message.size() <= 1000 &&
+      data.status in ['queued', 'sent', 'manual_link'] &&
+      data.createdAt is timestamp;
+    }
+
+    function isValidConversation(data) {
+      return data.keys().hasAll([
+        'customerId', 'customerName', 'customerEmail', 'lastMessage',
+        'lastSenderRole', 'unreadByAdmin', 'unreadByCustomer', 'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'customerId', 'customerName', 'customerEmail', 'lastMessage',
+        'lastSenderRole', 'unreadByAdmin', 'unreadByCustomer', 'createdAt', 'updatedAt'
+      ]) &&
+      isValidId(data.customerId) &&
+      data.customerName is string && data.customerName.size() >= 1 && data.customerName.size() <= 100 &&
+      data.customerEmail is string && data.customerEmail.size() >= 3 && data.customerEmail.size() <= 150 &&
+      data.lastMessage is string && data.lastMessage.size() >= 1 && data.lastMessage.size() <= 500 &&
+      data.lastSenderRole in ['customer', 'admin'] &&
+      data.unreadByAdmin is bool &&
+      data.unreadByCustomer is bool &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidMessage(data) {
+      return data.keys().hasAll([
+        'senderId', 'senderName', 'senderRole', 'text', 'createdAt'
+      ]) &&
+      data.keys().hasOnly([
+        'senderId', 'senderName', 'senderRole', 'text',
+        'productId', 'productTitle', 'productPriceXof', 'createdAt'
+      ]) &&
+      isValidId(data.senderId) &&
+      data.senderName is string && data.senderName.size() >= 1 && data.senderName.size() <= 100 &&
+      data.senderRole in ['customer', 'admin'] &&
+      data.text is string && data.text.size() >= 1 && data.text.size() <= 1500 &&
+      (!('productId' in data) || data.productId == null || (data.productId is string && data.productId.size() <= 128)) &&
+      (!('productTitle' in data) || data.productTitle == null || (data.productTitle is string && data.productTitle.size() <= 140)) &&
+      (!('productPriceXof' in data) || data.productPriceXof == null || (data.productPriceXof is int || data.productPriceXof is float)) &&
+      data.createdAt is timestamp;
+    }
+
+    function isValidWishlist(data) {
+      return data.keys().hasAll(['customerId', 'productIds', 'updatedAt']) &&
+      data.keys().hasOnly(['customerId', 'productIds', 'updatedAt']) &&
+      isValidId(data.customerId) &&
+      data.productIds is list && data.productIds.size() <= 50 &&
+      (data.productIds.size() == 0 || (data.productIds[0] is string && data.productIds[0].size() <= 128)) &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidAdminUser(data) {
+      return data.keys().hasAll(['email', 'createdAt']) &&
+      data.keys().hasOnly(['email', 'createdAt']) &&
+      data.email is string && data.email.size() >= 3 && data.email.size() <= 150 &&
+      data.createdAt is timestamp;
+    }
+
+    // 4. Collection Rules
+    match /products/{productId} {
+      allow get: if isValidId(productId);
+      allow list: if true;
+      allow create: if isValidId(productId) && isAdmin() && isValidProduct(incoming()) &&
+        incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isValidId(productId) && isAdmin() && isValidProduct(incoming()) &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'title', 'category', 'description', 'priceXof', 'compareAtPriceXof',
+          'imageUrl', 'galleryUrls', 'colors', 'sizeGuideCategory',
+          'available', 'stock', 'sizes', 'festiveTags',
+          'featured', 'salesCount', 'updatedAt'
+        ]);
+      allow delete: if isValidId(productId) && isAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow get: if isValidId(settingId);
+      allow list: if true;
+      allow create: if isValidId(settingId) && isAdmin() && isValidStoreSettings(incoming()) &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(settingId) && isAdmin() && isValidStoreSettings(incoming()) &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'festiveMode', 'manualSeasonId', 'customBannerText',
+          'festiveDiscountPercent', 'freeDeliveryThresholdXof',
+          'standardDeliveryFeeXof', 'storePhone',
+          'whatsappPhone', 'whatsappAutoNotify', 'preferredPaymentGateway',
+          'loyaltyEarnStepXof', 'loyaltyPointValueXof',
+          'loyaltyMinRedeemPoints', 'loyaltyMinOrderXof',
+          'loyaltyMaxDiscountPercent', 'updatedAt'
+        ]);
+      allow delete: if false;
+    }
+
+    match /orders/{orderId} {
+      allow get: if isValidId(orderId) && isVerified() && (existing().customerId == request.auth.uid || isAdmin());
+      allow list: if isVerified() && (resource.data.customerId == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isValidId(orderId) && isVerified() && isValidOrder(incoming()) &&
+        incoming().customerId == request.auth.uid &&
+        incoming().status == 'pending' &&
+        (!('pointsCredited' in incoming()) || incoming().pointsCredited == false) &&
+        (!('referralRewarded' in incoming()) || incoming().referralRewarded == false) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        (
+          !('pointsRedeemed' in incoming()) || incoming().pointsRedeemed == 0 ||
+          (
+            exists(/databases/$(database)/documents/loyaltyAccounts/$(request.auth.uid)) &&
+            get(/databases/$(database)/documents/loyaltyAccounts/$(request.auth.uid)).data.pointsBalance >= incoming().pointsRedeemed &&
+            getAfter(/databases/$(database)/documents/loyaltyAccounts/$(request.auth.uid)).data.pointsBalance == get(/databases/$(database)/documents/loyaltyAccounts/$(request.auth.uid)).data.pointsBalance - incoming().pointsRedeemed &&
+            getAfter(/databases/$(database)/documents/loyaltyAccounts/$(request.auth.uid)).data.lastOrderId == orderId
+          )
+        );
+      allow update: if isValidId(orderId) && isVerified() && isValidOrder(incoming()) &&
+        incoming().customerId == existing().customerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly([
+            'status', 'notes', 'pointsCredited', 'referralRewarded',
+            'paymentStatus', 'paymentReference', 'paymentProvider', 'updatedAt'
+          ])) ||
+          (
+            existing().customerId == request.auth.uid &&
+            existing().status == 'pending' &&
+            incoming().status == 'cancelled' &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+          ) ||
+          (
+            existing().customerId == request.auth.uid &&
+            existing().status == 'pending' &&
+            incoming().status == 'pending' &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'paymentStatus', 'paymentReference', 'paymentProvider', 'updatedAt'
+            ]) &&
+            incoming().paymentStatus in ['pending_verification', 'paid']
+          )
+        );
+      allow delete: if isValidId(orderId) && isAdmin();
+    }
+
+    match /loyaltyAccounts/{userId} {
+      allow get: if isValidId(userId) && isVerified() && (userId == request.auth.uid || isAdmin());
+      allow list: if isBootstrappedAdmin();
+      allow create: if isValidId(userId) && isVerified() && isValidLoyaltyAccount(incoming()) &&
+        incoming().customerId == userId &&
+        incoming().updatedAt == request.time && (
+          isAdmin() ||
+          (
+            userId == request.auth.uid &&
+            incoming().pointsBalance == 50 &&
+            incoming().totalEarned == 50 &&
+            incoming().totalRedeemed == 0
+          )
+        );
+      allow update: if isValidId(userId) && isVerified() && isValidLoyaltyAccount(incoming()) &&
+        incoming().customerId == existing().customerId &&
+        incoming().updatedAt == request.time && (
+          (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly([
+            'customerName', 'customerEmail', 'pointsBalance', 'totalEarned',
+            'totalRedeemed', 'referralCode', 'referredByCode', 'lastOrderId', 'updatedAt'
+          ])) ||
+          (
+            userId == request.auth.uid &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['referralCode', 'updatedAt']) &&
+            (!('referralCode' in existing()) || existing().referralCode == null)
+          ) ||
+          (
+            userId == request.auth.uid &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['pointsBalance', 'totalRedeemed', 'lastOrderId', 'updatedAt']) &&
+            incoming().totalEarned == existing().totalEarned &&
+            incoming().lastOrderId is string &&
+            isValidId(incoming().lastOrderId) &&
+            (
+              // Atomic redemption on new order creation
+              (
+                incoming().pointsBalance < existing().pointsBalance &&
+                incoming().totalRedeemed == existing().totalRedeemed + (existing().pointsBalance - incoming().pointsBalance) &&
+                !exists(/databases/$(database)/documents/orders/$(incoming().lastOrderId)) &&
+                existsAfter(/databases/$(database)/documents/orders/$(incoming().lastOrderId)) &&
+                getAfter(/databases/$(database)/documents/orders/$(incoming().lastOrderId)).data.customerId == request.auth.uid &&
+                getAfter(/databases/$(database)/documents/orders/$(incoming().lastOrderId)).data.pointsRedeemed == (existing().pointsBalance - incoming().pointsBalance)
+              ) ||
+              // Atomic refund on pending order cancellation
+              (
+                incoming().pointsBalance > existing().pointsBalance &&
+                incoming().totalRedeemed == existing().totalRedeemed - (incoming().pointsBalance - existing().pointsBalance) &&
+                exists(/databases/$(database)/documents/orders/$(incoming().lastOrderId)) &&
+                get(/databases/$(database)/documents/orders/$(incoming().lastOrderId)).data.customerId == request.auth.uid &&
+                get(/databases/$(database)/documents/orders/$(incoming().lastOrderId)).data.status == 'pending' &&
+                getAfter(/databases/$(database)/documents/orders/$(incoming().lastOrderId)).data.status == 'cancelled' &&
+                get(/databases/$(database)/documents/orders/$(incoming().lastOrderId)).data.pointsRedeemed == (incoming().pointsBalance - existing().pointsBalance)
+              )
+            )
+          )
+        );
+      allow delete: if false;
+    }
+
+    match /loyaltyTransactions/{txId} {
+      allow get: if isValidId(txId) && isVerified() && (existing().customerId == request.auth.uid || isAdmin());
+      allow list: if isVerified() && (resource.data.customerId == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isValidId(txId) && isVerified() && isValidLoyaltyTransaction(incoming()) &&
+        incoming().createdAt == request.time && (
+          isAdmin() ||
+          (
+            incoming().customerId == request.auth.uid &&
+            incoming().type == 'welcome' &&
+            incoming().pointsDelta == 50 &&
+            !exists(/databases/$(database)/documents/loyaltyAccounts/$(request.auth.uid)) &&
+            existsAfter(/databases/$(database)/documents/loyaltyAccounts/$(request.auth.uid))
+          ) ||
+          (
+            incoming().customerId == request.auth.uid &&
+            incoming().type == 'redeem' &&
+            incoming().pointsDelta < 0 &&
+            'orderId' in incoming() && incoming().orderId is string &&
+            existsAfter(/databases/$(database)/documents/orders/$(incoming().orderId)) &&
+            getAfter(/databases/$(database)/documents/orders/$(incoming().orderId)).data.customerId == request.auth.uid &&
+            getAfter(/databases/$(database)/documents/orders/$(incoming().orderId)).data.pointsRedeemed == -incoming().pointsDelta
+          ) ||
+          (
+            incoming().customerId == request.auth.uid &&
+            incoming().type == 'refund' &&
+            incoming().pointsDelta > 0 &&
+            'orderId' in incoming() && incoming().orderId is string &&
+            exists(/databases/$(database)/documents/orders/$(incoming().orderId)) &&
+            get(/databases/$(database)/documents/orders/$(incoming().orderId)).data.customerId == request.auth.uid &&
+            get(/databases/$(database)/documents/orders/$(incoming().orderId)).data.status == 'pending' &&
+            getAfter(/databases/$(database)/documents/orders/$(incoming().orderId)).data.status == 'cancelled' &&
+            get(/databases/$(database)/documents/orders/$(incoming().orderId)).data.pointsRedeemed == incoming().pointsDelta
+          )
+        );
+      allow update, delete: if false;
+    }
+
+    match /referrals/{code} {
+      allow get: if isValidId(code);
+      allow list: if isVerified() && (resource.data.ownerId == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isValidId(code) && isVerified() && isValidReferral(incoming()) &&
+        incoming().code == code &&
+        incoming().ownerId == request.auth.uid &&
+        incoming().successfulCount == 0 &&
+        incoming().totalBonusPoints == 0 &&
+        incoming().createdAt == request.time;
+      allow update: if isValidId(code) && isAdmin() && isValidReferral(incoming()) &&
+        incoming().code == existing().code &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['successfulCount', 'totalBonusPoints']);
+      allow delete: if false;
+    }
+
+    match /promoCodes/{code} {
+      allow get: if isValidId(code);
+      allow list: if isBootstrappedAdmin();
+      allow create: if isValidId(code) && isAdmin() && isValidPromoCode(incoming()) &&
+        incoming().code == code &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(code) && isVerified() && isValidPromoCode(incoming()) &&
+        incoming().code == existing().code &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          isAdmin() ||
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly(['usedCount', 'lastOrderId', 'updatedAt']) &&
+            incoming().usedCount == existing().usedCount + 1 &&
+            existing().active == true &&
+            existing().usedCount < existing().maxUses &&
+            incoming().lastOrderId is string &&
+            isValidId(incoming().lastOrderId) &&
+            !exists(/databases/$(database)/documents/orders/$(incoming().lastOrderId)) &&
+            existsAfter(/databases/$(database)/documents/orders/$(incoming().lastOrderId)) &&
+            getAfter(/databases/$(database)/documents/orders/$(incoming().lastOrderId)).data.customerId == request.auth.uid &&
+            getAfter(/databases/$(database)/documents/orders/$(incoming().lastOrderId)).data.promoCode == code
+          )
+        );
+      allow delete: if isValidId(code) && isAdmin();
+    }
+
+    match /reviews/{reviewId} {
+      allow get: if isValidId(reviewId);
+      allow list: if true;
+      allow create: if isValidId(reviewId) && isVerified() && isValidReview(incoming()) &&
+        incoming().customerId == request.auth.uid &&
+        incoming().verifiedPurchase == true &&
+        incoming().createdAt == request.time &&
+        exists(/databases/$(database)/documents/orders/$(incoming().orderId)) &&
+        get(/databases/$(database)/documents/orders/$(incoming().orderId)).data.customerId == request.auth.uid &&
+        get(/databases/$(database)/documents/orders/$(incoming().orderId)).data.status == 'delivered';
+      allow update: if false;
+      allow delete: if isValidId(reviewId) && (isAdmin() || (isVerified() && existing().customerId == request.auth.uid));
+    }
+
+    match /notifications/{notificationId} {
+      allow get: if isValidId(notificationId) && isAdmin();
+      allow list: if isBootstrappedAdmin();
+      allow create: if isValidId(notificationId) && isVerified() && isValidNotification(incoming()) &&
+        incoming().createdAt == request.time && (
+          isAdmin() ||
+          (
+            incoming().recipientRole == 'admin' &&
+            (
+              (
+                incoming().event == 'new_order' &&
+                'orderId' in incoming() && incoming().orderId is string &&
+                existsAfter(/databases/$(database)/documents/orders/$(incoming().orderId)) &&
+                getAfter(/databases/$(database)/documents/orders/$(incoming().orderId)).data.customerId == request.auth.uid
+              ) ||
+              (
+                incoming().event == 'new_message' &&
+                existsAfter(/databases/$(database)/documents/conversations/$(request.auth.uid))
+              )
+            )
+          )
+        );
+      allow update: if isValidId(notificationId) && isAdmin() && isValidNotification(incoming()) &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['status']);
+      allow delete: if isValidId(notificationId) && isAdmin();
+    }
+
+    match /conversations/{conversationId} {
+      allow get: if isValidId(conversationId) && isVerified() && (conversationId == request.auth.uid || existing().customerId == request.auth.uid || isAdmin());
+      allow list: if isVerified() && (resource.data.customerId == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isValidId(conversationId) && isVerified() && isValidConversation(incoming()) &&
+        conversationId == request.auth.uid &&
+        incoming().customerId == request.auth.uid &&
+        incoming().lastSenderRole == 'customer' &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(conversationId) && isVerified() && isValidConversation(incoming()) &&
+        incoming().customerId == existing().customerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly([
+            'lastMessage', 'lastSenderRole', 'unreadByAdmin', 'unreadByCustomer', 'updatedAt'
+          ])) ||
+          (
+            existing().customerId == request.auth.uid &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'customerName', 'customerEmail', 'lastMessage', 'lastSenderRole', 'unreadByAdmin', 'unreadByCustomer', 'updatedAt'
+            ]) &&
+            (!incoming().diff(existing()).affectedKeys().hasAny(['lastMessage', 'lastSenderRole', 'unreadByAdmin']) || incoming().lastSenderRole == 'customer')
+          )
+        );
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        allow get: if isValidId(conversationId) && isValidId(messageId) && isVerified() &&
+          (conversationId == request.auth.uid || isAdmin());
+        allow list: if isValidId(conversationId) && isVerified() &&
+          (conversationId == request.auth.uid || isBootstrappedAdmin());
+        allow create: if isValidId(conversationId) && isValidId(messageId) && isVerified() && isValidMessage(incoming()) &&
+          incoming().senderId == request.auth.uid &&
+          incoming().createdAt == request.time &&
+          existsAfter(/databases/$(database)/documents/conversations/$(conversationId)) && (
+            (isAdmin() && incoming().senderRole == 'admin') ||
+            (
+              getAfter(/databases/$(database)/documents/conversations/$(conversationId)).data.customerId == request.auth.uid &&
+              incoming().senderRole == 'customer'
+            )
+          );
+        allow update, delete: if false;
+      }
+    }
+
+    match /wishlists/{userId} {
+      allow get: if isValidId(userId) && isVerified() && userId == request.auth.uid;
+      allow list: if false;
+      allow create, update: if isValidId(userId) && isVerified() && userId == request.auth.uid &&
+        isValidWishlist(incoming()) &&
+        incoming().customerId == request.auth.uid &&
+        incoming().updatedAt == request.time;
+      allow delete: if isValidId(userId) && isVerified() && userId == request.auth.uid;
+    }
+
+    match /admins/{userId} {
+      allow get: if isValidId(userId) && isVerified() && (userId == request.auth.uid || isBootstrappedAdmin());
+      allow list: if isBootstrappedAdmin();
+      allow create, update: if isValidId(userId) && isBootstrappedAdmin() && isValidAdminUser(incoming()) &&
+        incoming().createdAt == request.time;
+      allow delete: if isValidId(userId) && isBootstrappedAdmin();
+    }
+  }
+}

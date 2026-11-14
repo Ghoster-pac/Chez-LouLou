@@ -1,0 +1,323 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "An item sold in the Chez LouLou catalog across Femme, Homme, Enfants, Jeunes, and Cadeaux.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "minLength": 2, "maxLength": 140 },
+        "category": { "type": "string", "enum": ["femme", "homme", "enfants", "jeunes", "cadeaux"] },
+        "description": { "type": "string", "minLength": 2, "maxLength": 2000 },
+        "priceXof": { "type": "number" },
+        "compareAtPriceXof": { "type": "number" },
+        "imageUrl": { "type": "string", "minLength": 5, "maxLength": 350000 },
+        "galleryUrls": { "type": "array" },
+        "colors": { "type": "array" },
+        "sizeGuideCategory": { "type": "string", "enum": ["vetements", "enfants", "chaussures", "accessoires"] },
+        "available": { "type": "boolean" },
+        "stock": { "type": "number" },
+        "sizes": { "type": "array" },
+        "festiveTags": { "type": "array" },
+        "featured": { "type": "boolean" },
+        "salesCount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "title", "category", "description", "priceXof", "imageUrl",
+        "available", "stock", "sizes", "festiveTags", "featured",
+        "salesCount", "createdAt", "updatedAt"
+      ]
+    },
+    "StoreSettings": {
+      "title": "StoreSettings",
+      "description": "Storewide festive theme, delivery, loyalty, WhatsApp, and payment parameters.",
+      "type": "object",
+      "properties": {
+        "festiveMode": { "type": "string", "enum": ["auto", "manual"] },
+        "manualSeasonId": { "type": "string", "minLength": 2, "maxLength": 64 },
+        "customBannerText": { "type": "string", "maxLength": 200 },
+        "festiveDiscountPercent": { "type": "number" },
+        "freeDeliveryThresholdXof": { "type": "number" },
+        "standardDeliveryFeeXof": { "type": "number" },
+        "storePhone": { "type": "string", "maxLength": 32 },
+        "whatsappPhone": { "type": "string", "maxLength": 32 },
+        "whatsappAutoNotify": { "type": "boolean" },
+        "preferredPaymentGateway": { "type": "string", "enum": ["wave_direct", "paystack", "cinetpay", "manual"] },
+        "loyaltyEarnStepXof": { "type": "number" },
+        "loyaltyPointValueXof": { "type": "number" },
+        "loyaltyMinRedeemPoints": { "type": "number" },
+        "loyaltyMinOrderXof": { "type": "number" },
+        "loyaltyMaxDiscountPercent": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "festiveMode", "manualSeasonId", "customBannerText",
+        "festiveDiscountPercent", "freeDeliveryThresholdXof",
+        "standardDeliveryFeeXof", "storePhone", "updatedAt"
+      ]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Customer purchase order with Ivory Coast delivery, verified payment, promo code, referral, and loyalty points details.",
+      "type": "object",
+      "properties": {
+        "orderNumber": { "type": "string", "minLength": 4, "maxLength": 32, "pattern": "^CL-[0-9A-Z\\-]+$" },
+        "customerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "customerName": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "customerEmail": { "type": "string", "minLength": 3, "maxLength": 150 },
+        "customerPhone": { "type": "string", "minLength": 6, "maxLength": 32 },
+        "city": { "type": "string", "minLength": 2, "maxLength": 64 },
+        "commune": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "addressDetails": { "type": "string", "maxLength": 300 },
+        "paymentMethod": { "type": "string", "enum": ["wave", "orange_money", "mtn_momo", "card", "cash_on_delivery"] },
+        "paymentStatus": { "type": "string", "enum": ["unpaid", "pending_verification", "paid", "failed"] },
+        "paymentReference": { "type": "string", "maxLength": 128 },
+        "paymentProvider": { "type": "string", "maxLength": 64 },
+        "items": { "type": "array" },
+        "subtotalXof": { "type": "number" },
+        "deliveryFeeXof": { "type": "number" },
+        "discountXof": { "type": "number" },
+        "promoCode": { "type": "string", "maxLength": 32 },
+        "promoDiscountXof": { "type": "number" },
+        "pointsRedeemed": { "type": "number" },
+        "pointsDiscountXof": { "type": "number" },
+        "pointsEarned": { "type": "number" },
+        "pointsCredited": { "type": "boolean" },
+        "referralCodeUsed": { "type": "string", "maxLength": 32 },
+        "referralRewarded": { "type": "boolean" },
+        "totalXof": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "preparing", "delivering", "delivered", "cancelled"] },
+        "notes": { "type": "string", "maxLength": 400 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "orderNumber", "customerId", "customerName", "customerEmail",
+        "customerPhone", "city", "commune", "addressDetails",
+        "paymentMethod", "items", "subtotalXof", "deliveryFeeXof",
+        "discountXof", "totalXof", "status", "notes", "createdAt", "updatedAt"
+      ]
+    },
+    "LoyaltyAccount": {
+      "title": "LoyaltyAccount",
+      "description": "Customer loyalty points balance, referral code, and lifetime totals.",
+      "type": "object",
+      "properties": {
+        "customerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "customerName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "customerEmail": { "type": "string", "minLength": 3, "maxLength": 150 },
+        "pointsBalance": { "type": "number" },
+        "totalEarned": { "type": "number" },
+        "totalRedeemed": { "type": "number" },
+        "referralCode": { "type": "string", "maxLength": 32 },
+        "referredByCode": { "type": "string", "maxLength": 32 },
+        "lastOrderId": { "type": "string", "maxLength": 128 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "customerId", "customerName", "customerEmail",
+        "pointsBalance", "totalEarned", "totalRedeemed", "updatedAt"
+      ]
+    },
+    "LoyaltyTransaction": {
+      "title": "LoyaltyTransaction",
+      "description": "Immutable ledger entry for loyalty points earned, redeemed, refunded, referral, or gifted.",
+      "type": "object",
+      "properties": {
+        "customerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "type": { "type": "string", "enum": ["welcome", "earn", "redeem", "refund", "bonus", "referral"] },
+        "pointsDelta": { "type": "number" },
+        "orderId": { "type": "string", "maxLength": 128 },
+        "orderNumber": { "type": "string", "maxLength": 32 },
+        "description": { "type": "string", "minLength": 2, "maxLength": 200 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["customerId", "type", "pointsDelta", "description", "createdAt"]
+    },
+    "Referral": {
+      "title": "Referral",
+      "description": "Unique customer referral code for inviting friends (+100 points each).",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string", "minLength": 4, "maxLength": 32, "pattern": "^[A-Z0-9\\-]+$" },
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "successfulCount": { "type": "number" },
+        "totalBonusPoints": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["code", "ownerId", "ownerName", "successfulCount", "totalBonusPoints", "createdAt"]
+    },
+    "PromoCode": {
+      "title": "PromoCode",
+      "description": "Seasonal or influencer promotional code configured by admin.",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string", "minLength": 3, "maxLength": 32, "pattern": "^[A-Z0-9_\\-]+$" },
+        "description": { "type": "string", "maxLength": 160 },
+        "partnerName": { "type": "string", "maxLength": 100 },
+        "discountType": { "type": "string", "enum": ["percent", "fixed_xof"] },
+        "discountValue": { "type": "number" },
+        "minOrderXof": { "type": "number" },
+        "maxUses": { "type": "number" },
+        "usedCount": { "type": "number" },
+        "active": { "type": "boolean" },
+        "seasonTag": { "type": "string", "maxLength": 64 },
+        "expiresAt": { "type": "string", "maxLength": 32 },
+        "lastOrderId": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "code", "description", "partnerName", "discountType", "discountValue",
+        "minOrderXof", "maxUses", "usedCount", "active", "createdAt", "updatedAt"
+      ]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "Verified customer review on a delivered product.",
+      "type": "object",
+      "properties": {
+        "productId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "orderId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "customerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "customerName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "rating": { "type": "number" },
+        "comment": { "type": "string", "minLength": 3, "maxLength": 1000 },
+        "photoUrl": { "type": "string", "maxLength": 350000 },
+        "verifiedPurchase": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["productId", "orderId", "customerId", "customerName", "rating", "comment", "verifiedPurchase", "createdAt"]
+    },
+    "NotificationLog": {
+      "title": "NotificationLog",
+      "description": "WhatsApp and SMS notification history for orders and seller alerts.",
+      "type": "object",
+      "properties": {
+        "orderId": { "type": "string", "maxLength": 128 },
+        "orderNumber": { "type": "string", "maxLength": 32 },
+        "recipientRole": { "type": "string", "enum": ["customer", "admin"] },
+        "recipientPhone": { "type": "string", "maxLength": 32 },
+        "channel": { "type": "string", "enum": ["whatsapp", "sms"] },
+        "event": { "type": "string", "maxLength": 64 },
+        "message": { "type": "string", "minLength": 2, "maxLength": 1000 },
+        "status": { "type": "string", "enum": ["queued", "sent", "manual_link"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["recipientRole", "recipientPhone", "channel", "event", "message", "status", "createdAt"]
+    },
+    "Conversation": {
+      "title": "Conversation",
+      "description": "Direct messaging thread between a customer and the store seller.",
+      "type": "object",
+      "properties": {
+        "customerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "customerName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "customerEmail": { "type": "string", "minLength": 3, "maxLength": 150 },
+        "lastMessage": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "lastSenderRole": { "type": "string", "enum": ["customer", "admin"] },
+        "unreadByAdmin": { "type": "boolean" },
+        "unreadByCustomer": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "customerId", "customerName", "customerEmail", "lastMessage",
+        "lastSenderRole", "unreadByAdmin", "unreadByCustomer", "createdAt", "updatedAt"
+      ]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "Individual message inside a customer-seller conversation.",
+      "type": "object",
+      "properties": {
+        "senderId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "senderName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "senderRole": { "type": "string", "enum": ["customer", "admin"] },
+        "text": { "type": "string", "minLength": 1, "maxLength": 1500 },
+        "productId": { "type": "string", "maxLength": 128 },
+        "productTitle": { "type": "string", "maxLength": 140 },
+        "productPriceXof": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["senderId", "senderName", "senderRole", "text", "createdAt"]
+    },
+    "Wishlist": {
+      "title": "Wishlist",
+      "description": "Saved favorite product IDs for a signed-in customer.",
+      "type": "object",
+      "properties": {
+        "customerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "productIds": { "type": "array" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["customerId", "productIds", "updatedAt"]
+    },
+    "AdminUser": {
+      "title": "AdminUser",
+      "description": "Explicit administrator record.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "minLength": 3, "maxLength": 150 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": { "$ref": "#/entities/Product" },
+      "description": "Publicly readable product catalog managed exclusively by store admins."
+    },
+    "/settings/{settingId}": {
+      "schema": { "$ref": "#/entities/StoreSettings" },
+      "description": "Storewide festive theme, delivery, WhatsApp, payment, and loyalty configuration."
+    },
+    "/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/Order" },
+      "description": "Customer orders isolated by customerId or accessible to admin."
+    },
+    "/loyaltyAccounts/{userId}": {
+      "schema": { "$ref": "#/entities/LoyaltyAccount" },
+      "description": "Customer loyalty points account protected against self-minting."
+    },
+    "/loyaltyTransactions/{txId}": {
+      "schema": { "$ref": "#/entities/LoyaltyTransaction" },
+      "description": "Immutable loyalty points ledger entries."
+    },
+    "/referrals/{code}": {
+      "schema": { "$ref": "#/entities/Referral" },
+      "description": "Customer referral codes for +100 pts invite rewards."
+    },
+    "/promoCodes/{code}": {
+      "schema": { "$ref": "#/entities/PromoCode" },
+      "description": "Seasonal and influencer promo codes."
+    },
+    "/reviews/{reviewId}": {
+      "schema": { "$ref": "#/entities/Review" },
+      "description": "Verified customer product reviews."
+    },
+    "/notifications/{notificationId}": {
+      "schema": { "$ref": "#/entities/NotificationLog" },
+      "description": "WhatsApp and SMS notification history."
+    },
+    "/conversations/{conversationId}": {
+      "schema": { "$ref": "#/entities/Conversation" },
+      "description": "Customer-seller messaging thread metadata."
+    },
+    "/conversations/{conversationId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/Message" },
+      "description": "Messages belonging to a customer-seller conversation."
+    },
+    "/wishlists/{userId}": {
+      "schema": { "$ref": "#/entities/Wishlist" },
+      "description": "Customer private wishlist."
+    },
+    "/admins/{userId}": {
+      "schema": { "$ref": "#/entities/AdminUser" },
+      "description": "Admin role allowlist."
+    }
+  }
+}

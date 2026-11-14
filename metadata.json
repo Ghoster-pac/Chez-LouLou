@@ -1,0 +1,6 @@
+{
+  "name": "Maison Éburnie — Boutique & Cadeaux Côte d'Ivoire",
+  "description": "Boutique en ligne moderne en Côte d'Ivoire (Femme, Homme, Enfants, Jeunes & Cadeaux) avec adaptation festive automatique, messagerie client-vendeur en temps réel et console d'administration analytique.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
